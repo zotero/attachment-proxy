@@ -1,6 +1,6 @@
 module.exports = {
 	logLevel: 'debug',
-	// If logFile is not set, then all logs will output to console
+	// If logFile is empty, then all logs will output to console
 	logFile: '',
 	port: 3000,
 	s3: {
@@ -12,12 +12,14 @@ module.exports = {
 	},
 	// Secret key used to sign a payload with HMAC
 	secret: '',
-	// How long zip file should be mounted and cached in seconds
-	zipCacheTime: 10,
-	// Maximum safe count of files and folders in zip file (0 for unlimited)
-	zipMaxFiles: 10000,
+	// Seconds how long a zip file should be mounted and cached
+	zipCacheTime: 60,
+	// Maximum safe count of files and folders in a zip file (0 for unlimited)
+	zipMaxFiles: 1000,
 	// Maximum safe uncompressed file size in bytes (0 for unlimited)
-	zipMaxFileSize: 512 * 1024 * 1024,
+	zipMaxFileSize: 128 * 1024 * 1024,
 	// Directory to keep temporary downloaded zip files
-	tmpDir: './tmp/'
+	tmpDir: './tmp/',
+	// Client connection inactivity timeout in seconds
+	connectionTimeout: 30
 };

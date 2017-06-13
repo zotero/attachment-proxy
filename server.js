@@ -83,6 +83,13 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 	let signature = ctx.params.signature;
 	let filename = ctx.params.filename;
 	
+	// Some saved websites often try to fetch resources from '../' path,
+	// therefore remove signature from url.
+	// We try to detect this fast
+	if(!/^[0-9A-Fa-f]{64}$/.test(signature)) {
+		ctx.throw(400);
+	}
+	
 	// Compare signatures
 	let computedSignature = crypto.createHmac("sha256", config.get('secret')).update(payload).digest("hex");
 	if (signature !== computedSignature) {
@@ -114,7 +121,7 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 		try {
 			stream = await zip.getStream(filename);
 		} catch (err) {
-			// Too keep all http response code logic in server.js
+			// To keep all http response code logic in server.js
 			if (err.code === 'EntryNotFound') {
 				err.status = 404;
 			}
@@ -248,6 +255,8 @@ app.on('error', function (err, ctx) {
 module.exports = function (callback) {
 	log.info("Starting attachment-proxy [pid: " + process.pid + "] on port " + config.get('port'));
 	return utils.promisify(function (callback) {
-		app.listen(config.get('port'), callback);
+		let server = app.listen(config.get('port'), callback);
+		// Disconnect inactive clients
+		server.setTimeout(config.get('connectionTimeout') * 1000);
 	}, callback);
 };

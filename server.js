@@ -220,13 +220,6 @@ process.on('SIGINT', function () {
 
 process.on('uncaughtException', function (err) {
 	log.error("Uncaught exception:", err);
-	
-	// Temporary hack to capture aws-sdk getObject().createReadableStream() error
-	// https://github.com/aws/aws-sdk-js/pull/1549
-	if (err.message === 'write after end') {
-		return;
-	}
-	
 	shutdown();
 });
 

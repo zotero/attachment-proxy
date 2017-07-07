@@ -10,7 +10,7 @@
   "author": "",
   "license": "AGPL-3.0",
   "dependencies": {
-    "aws-sdk": "^2.60.0",
+    "aws-sdk": "^2.82.0",
     "config": "^1.26.1",
     "koa": "^2.2.0",
     "koa-compress": "^2.0.0",

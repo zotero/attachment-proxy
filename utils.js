@@ -3,7 +3,7 @@
  
  This file is part of the Zotero Data Server.
  
- Copyright © 2017 Center for History and New Media
+ Copyright © 2018 Center for History and New Media
  George Mason University, Fairfax, Virginia, USA
  http://zotero.org
  

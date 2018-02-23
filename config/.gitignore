@@ -1,4 +1,4 @@
 .*
-!/sample-config.json
-!/stress.json
-!/.gitignore
+!sample-config.json
+!stress.json
+!.gitignore

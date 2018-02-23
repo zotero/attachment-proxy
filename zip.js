@@ -3,7 +3,7 @@
  
  This file is part of the Zotero Data Server.
  
- Copyright © 2017 Center for History and New Media
+ Copyright © 2018 Center for History and New Media
  George Mason University, Fairfax, Virginia, USA
  http://zotero.org
  
@@ -161,12 +161,13 @@ Zip.prototype.getStream = function (filename, callback) {
 			return callback(new Error('Zip object is not active'));
 		}
 		
-		let entry = zip.entries[filename];
-		if (!entry) {
+		if (!zip.entries.hasOwnProperty(filename)) {
 			let err = new Error(`Entry '${filename}' not found in ${zip.hash}`);
 			err.code = 'EntryNotFound';
 			return callback(err);
 		}
+		
+		let entry = zip.entries[filename];
 		
 		// Increase active streams number to inform the cleaner that this is still in use
 		// and prevent destroying this zip

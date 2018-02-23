@@ -1,32 +1,32 @@
 {
   "name": "attachment-proxy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "server.js",
   "scripts": {
     "test": "NODE_ENV=test ./node_modules/mocha/bin/mocha",
     "stress": "NODE_ENV=stress node --expose-gc ./test/other/stress.js"
   },
-  "author": "",
+  "author": "Martynas Bagdonas",
   "license": "AGPL-3.0",
   "dependencies": {
-    "aws-sdk": "^2.82.0",
-    "config": "^1.26.1",
-    "koa": "^2.2.0",
+    "aws-sdk": "^2.201.0",
+    "config": "^1.29.4",
+    "koa": "^2.5.0",
     "koa-compress": "^2.0.0",
-    "koa-router": "^7.2.0",
-    "mime": "^1.3.6",
+    "koa-router": "^7.4.0",
+    "mime": "^2.2.0",
     "through2": "^2.0.3",
-    "winston": "^2.3.1",
-    "yauzl": "^2.8.0"
+    "winston": "^2.4.0",
+    "yauzl": "^2.9.1"
   },
   "devDependencies": {
-    "archiver": "^1.3.0",
-    "chai": "^4.0.1",
-    "jszip": "^3.1.3",
-    "mocha": "^3.4.2",
-    "request": "^2.81.0",
-    "request-promise-native": "^1.0.4",
+    "archiver": "^2.1.1",
+    "chai": "^4.1.2",
+    "jszip": "^3.1.5",
+    "mocha": "^5.0.1",
+    "request": "^2.83.0",
+    "request-promise-native": "^1.0.5",
     "throttle": "^1.0.3"
   }
 }

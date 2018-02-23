@@ -256,5 +256,6 @@ describe('Attachment proxy', function () {
 		await deleteFile(hashZip);
 		await deleteFile(hashFileLegacy);
 		await deleteFile(hashZipLegacy);
+		process.exit();
 	});
 });

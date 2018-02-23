@@ -3,7 +3,7 @@
  
  This file is part of the Zotero Data Server.
  
- Copyright © 2017 Center for History and New Media
+ Copyright © 2018 Center for History and New Media
  George Mason University, Fairfax, Virginia, USA
  http://zotero.org
  
@@ -128,7 +128,7 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 			throw err;
 		}
 		// Guess content-type
-		ctx.type = mime.lookup(filename);
+		ctx.type = mime.getType(filename);
 		ctx.body = stream;
 	}
 	// If it's a regular file just pass-through the stream
@@ -249,7 +249,7 @@ module.exports = function (callback) {
 	log.info("Starting attachment-proxy [pid: " + process.pid + "] on port " + config.get('port'));
 	return utils.promisify(function (callback) {
 		let server = app.listen(config.get('port'), callback);
-		// Disconnect inactive clients
+		// Set a timeout for disconnecting inactive clients
 		server.setTimeout(config.get('connectionTimeout') * 1000);
 	}, callback);
 };

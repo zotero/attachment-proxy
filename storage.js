@@ -42,17 +42,16 @@ module.exports = Storage;
 /**
  * Returns s3 file stream
  * @param hash
- * @param zip
  * @param callback
  * @returns stream
  */
-Storage.prototype.getStream = function (hash, zip, callback) {
+Storage.prototype.getStream = function (hash, callback) {
 	const storage = this;
 	return utils.promisify(function (callback) {
 		storage.getStreamByKey(hash, function (err, stream) {
 			if (err) {
 				if (err.code === 'NoSuchKey') {
-					storage.getLegacyKey(hash, zip, function (err, key) {
+					storage.getLegacyKey(hash, function (err, key) {
 						if (err) return callback(err);
 						storage.getStreamByKey(key, function (err, stream) {
 							if (err) return callback(err);
@@ -114,15 +113,14 @@ Storage.prototype.getStreamByKey = function(key, callback) {
 /**
  * Try to get legacy S3 key
  * @param hash
- * @param zip
  * @param callback
  */
-Storage.prototype.getLegacyKey = function (hash, zip, callback) {
+Storage.prototype.getLegacyKey = function (hash, callback) {
 	const storage = this;
 	const params = {
 		Bucket: this.bucket,
 		MaxKeys: 1,
-		Prefix: hash + '/' + (zip ? 'c/' : ''),
+		Prefix: hash,
 	};
 	storage.s3Client.listObjects(params, function (err, data) {
 		if (err) return callback(err);
@@ -141,10 +139,10 @@ Storage.prototype.getTmpPath = function () {
 	}
 };
 
-Storage.prototype.downloadTmp = function (hash, zip, callback) {
+Storage.prototype.downloadTmp = function (hash, callback) {
 	const storage = this;
 	return utils.promisify(function (callback) {
-		storage.getStream(hash, zip, function (err, s3Stream) {
+		storage.getStream(hash, function (err, s3Stream) {
 			if (err) return callback(err);
 			let tmpPath = storage.getTmpPath();
 			if (!tmpPath) return callback(new Error('Error generating a tmp file path'));

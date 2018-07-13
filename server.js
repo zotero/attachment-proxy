@@ -166,7 +166,7 @@ async function getZip(hash) {
 		return zip;
 	}
 	
-	let tmpPath = await storage.downloadTmp(hash, true);
+	let tmpPath = await storage.downloadTmp(hash);
 	zip = new Zip();
 	await zip.load({
 		maxFiles: config.get('zipMaxFiles'),

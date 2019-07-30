@@ -2,8 +2,8 @@
   "name": "attachment-proxy",
   "version": "0.1.2",
   "description": "",
-  "main": "server.js",
   "scripts": {
+		"start": "node index.js",
     "test": "NODE_ENV=test ./node_modules/mocha/bin/mocha",
     "stress": "NODE_ENV=stress node --expose-gc ./test/other/stress.js"
   },

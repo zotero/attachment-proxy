@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "",
   "scripts": {
-		"start": "node index.js",
+    "start": "node index.js",
     "test": "NODE_ENV=test ./node_modules/mocha/bin/mocha",
     "stress": "NODE_ENV=stress node --expose-gc ./test/other/stress.js"
   },

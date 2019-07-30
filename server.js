@@ -78,6 +78,10 @@ app.use(compress({
 	flush: require('zlib').Z_SYNC_FLUSH
 }));
 
+router.get('/', async function (ctx) {
+	ctx.body = '';
+});
+
 router.get('/:payload/:signature/:filename', async function (ctx) {
 	let payload = ctx.params.payload;
 	let signature = ctx.params.signature;

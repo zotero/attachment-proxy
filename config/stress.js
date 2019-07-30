@@ -7,7 +7,7 @@ module.exports = {
 	port: 3000,
 	s3:  {
 		params: {
-			Bucket: ''
+			Bucket: 'test'
 		},
 		endpoint: 'http://localhost:4000',
 		s3ForcePathStyle: true

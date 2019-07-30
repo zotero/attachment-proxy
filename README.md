@@ -1,9 +1,9 @@
 # attachment-proxy
 
-Allows to view Zotero attachments online. There are two attachment types supported:
+This server allows viewing of attachments in online Zotero libraries. There are two types of attachments supported:
 
-* **Regular files.** Streamed directly from S3.
-* **Zipped website snapshots.** Downloaded from S3 and mounted while user is loading the website snapshot. After a while the zip file is unmounted and deleted. 
+* **Single files (e.g., PDFs):** Streamed directly from S3.
+* **Zipped webpage snapshots:** Downloaded from S3 and mounted while user is loading the webpage snapshot. After a while the ZIP file is unmounted and deleted.
 
 ### Install
 
@@ -17,7 +17,7 @@ npm install
 ```
 cp config/sample-config.js config/default.js
 ```
-Configure HMAC `secret` key, S3 `Bucket`, `accessKeyId` and `secretAccessKey`
+Configure HMAC `secret` key and S3 `Bucket` (and `accessKeyId` and `secretAccessKey` if not using an IAM role)
 
 ### Run
 

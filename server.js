@@ -112,7 +112,7 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 	// Validate url expiration
 	let t = Math.floor(Date.now() / 1000);
 	if (payload.expires <= t) {
-		const err = new Error('The url is expired');
+		const err = new Error('This URL has expired.');
 		err.status = 410;
 		err.expose = true;
 		throw err;

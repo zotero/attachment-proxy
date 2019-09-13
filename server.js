@@ -182,7 +182,9 @@ async function getZip(hash) {
 	// If another parallel request was faster to load the zip file,
 	// we have to destroy our and return the already existing
 	if (zips[hash]) {
+		log.debug('Destroying a zip in a parallel request', hash);
 		zip.destroy();
+		fs.unlink(zip.path, err => {});
 		zip = zips[hash];
 	} else {
 		zips[hash] = zip;

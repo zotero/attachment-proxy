@@ -26,6 +26,7 @@
 const fs = require('fs');
 const crypto = require('crypto');
 const Koa = require('koa');
+const cors = require('@koa/cors');
 const Router = require('koa-router');
 const compress = require('koa-compress');
 const mime = require('mime');
@@ -41,6 +42,15 @@ const storage = new Storage({
 	tmpDir: config.get('tmpDir'),
 	config: config.get('s3')
 });
+// Configure CORS for the web library PDF reader
+app.use(cors({
+	origin: (ctx) => {
+		let origin = ctx.get('origin');
+		if (origin && origin.endsWith('.zotero.org') || origin.endsWith('.zotero.net')) {
+			return ctx.get('origin');
+		}
+	}
+}));
 
 const zips = {};
 

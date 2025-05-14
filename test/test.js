@@ -100,13 +100,14 @@ describe('Attachment proxy', function () {
 		await uploadFinalizedZip(hashZipLegacy, zip);
 	});
 	
-	it('should download a file', async function () {
+	it('should download a file with the correct content-length header', async function () {
 		let url = getSignedURL({
 			hash: hashFile,
 			expires: Math.floor(Date.now() / 1000) + 10,
 			filename: 'file'
 		}, 'file');
 		let res = await request(url);
+		expect(res.headers['content-length']).to.equal('7');
 		expect(res.statusCode).to.equal(200);
 		expect(res.body).to.equal('content');
 	});
@@ -143,13 +144,14 @@ describe('Attachment proxy', function () {
 		expect(res.statusCode).to.equal(404);
 	});
 	
-	it('should download a file from a zip', async function () {
+	it('should download a file from a zip and the response must be gzipped', async function () {
 		let url = getSignedURL({
 			hash: hashZip,
 			expires: Math.floor(Date.now() / 1000) + 10,
 			zip: 1
 		}, 'document.htm');
-		let res = await request(url);
+		let res = await request({ url, gzip: true });
+		expect(res.headers['content-encoding']).to.equal('gzip');
 		expect(res.statusCode).to.equal(200);
 		expect(res.body).to.equal('content');
 	});
@@ -202,19 +204,6 @@ describe('Attachment proxy', function () {
 		let res = await request(url);
 		expect(res.statusCode).to.equal(200);
 		expect(res.headers['content-type']).to.equal('text/html; charset=chinese');
-		expect(res.body).to.equal('content');
-	});
-	
-	it('should use gzip for text files', async function () {
-		let url = getSignedURL({
-			hash: hashFile,
-			expires: Math.floor(Date.now() / 1000) + 10,
-			contentType: 'text/html',
-			filename: 'file'
-		}, 'file');
-		let res = await request({url: url, gzip: true});
-		expect(res.statusCode).to.equal(200);
-		expect(res.headers['content-encoding']).to.equal('gzip');
 		expect(res.body).to.equal('content');
 	});
 	

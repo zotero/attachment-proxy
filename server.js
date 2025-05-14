@@ -79,6 +79,9 @@ app.use(async function (ctx, next) {
  * A middleware to use gzip compression if the file is compressible
  * e.g. has text/html, text/css or similar 'text' content-type,
  * and is at least 2048 bytes size
+ *
+ * Note: This will only work for text/* files streamed from ZIP archives,
+ * because streaming from S3 now provides a Content-Length header which disables compression
  */
 app.use(compress({
 	filter: function (content_type) {
@@ -160,6 +163,11 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 			}
 			ctx.type = type;
 		}
+
+		if (stream.contentLength) {
+			ctx.set('Content-Length', stream.contentLength.toString());
+		}
+
 		ctx.body = stream;
 	}
 });

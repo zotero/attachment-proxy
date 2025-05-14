@@ -94,8 +94,13 @@ Storage.prototype.getStreamByKey = function(key, callback) {
 			next();
 		});
 
-	let stream = storage.s3Client.getObject({Key: key}).createReadStream();
-	
+	let request = storage.s3Client.getObject({ Key: key });
+	request.on('httpHeaders', (statusCode, headers) => {
+		if (statusCode === 200 && headers['content-length']) {
+			stream2.contentLength = parseInt(headers['content-length'], 10);
+		}
+	});
+	let stream = request.createReadStream();
 	// There are errors that can happen before data started streaming
 	// e.g. NoItemFound, connection time out, etc.
 	// and there are errors that can happen when streaming is already started

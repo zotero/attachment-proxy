@@ -23,6 +23,7 @@
  ***** END LICENSE BLOCK *****
  */
 
+const { PassThrough } = require("stream");
 const expect = require('chai').expect;
 const crypto = require('crypto');
 const AWS = require('aws-sdk');
@@ -66,6 +67,13 @@ let hashZip;
 let hashFileLegacy;
 let hashZipLegacy;
 
+async function uploadFinalizedZip(key, zip) {
+	const passThrough = new PassThrough();
+	zip.pipe(passThrough);
+	zip.finalize();
+	return uploadFile(key, passThrough);
+}
+
 describe('Attachment proxy', function () {
 	before(async function () {
 		this.timeout(0);
@@ -79,18 +87,17 @@ describe('Attachment proxy', function () {
 		zip.append('content', {name: 'QWJjZGVmZyDDg8KCw4PCqcODwqzDg8K4w4PCvCDDqMK/wpnDpsKYwq/DpMK4woDDpMK4wqrDpsK1wovDqMKvwpXDo8KAwoI=%ZB64'});
 		zip.append('content', {name: 'image.jpg'});
 		zip.append('content', {name: 'directory/file.txt'});
-		zip.finalize();
+		
 		hashZip = generateHash();
-		await uploadFile(hashZip, zip);
+		await uploadFinalizedZip(hashZip, zip);
 		
 		hashFileLegacy = generateHash() + '/file.pdf';
 		await uploadFile(hashFileLegacy, 'content');
 		
 		zip = archiver('zip');
 		zip.append('content', {name: 'document.htm'});
-		zip.finalize();
 		hashZipLegacy = generateHash() + '/c/WQP64GX4.zip';
-		await uploadFile(hashZipLegacy, zip);
+		await uploadFinalizedZip(hashZipLegacy, zip);
 	});
 	
 	it('should download a file', async function () {

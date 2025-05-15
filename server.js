@@ -40,7 +40,7 @@ const app = new Koa();
 const router = new Router();
 const storage = new Storage({
 	tmpDir: config.get('tmpDir'),
-	config: config.get('s3')
+	config: JSON.parse(JSON.stringify(config.get('s3')))
 });
 // Configure CORS for the web library PDF reader
 app.use(cors({
@@ -114,7 +114,7 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 	}
 	
 	// Decode payload
-	payload = new Buffer(payload, 'base64').toString();
+	payload = Buffer.from(payload, 'base64').toString();
 	payload = JSON.parse(payload);
 	log.debug('Payload:', payload);
 	if (!payload.expires || !payload.hash) {

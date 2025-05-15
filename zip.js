@@ -136,7 +136,7 @@ Zip.prototype._processEntry = function (entry) {
 Zip.prototype.decodeOldFilename = function (filename) {
 	try {
 		filename = filename.slice(0, -5);
-		filename = new Buffer(filename, 'base64').toString();
+		filename = Buffer.from(filename, 'base64').toString('utf8');
 		// 'escape' and 'decodeURIComponent' combination successfully decode
 		// file names, but find a better way to do this
 		// Todo: Replace deprecated 'escape'

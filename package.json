@@ -10,24 +10,25 @@
   "author": "Martynas Bagdonas",
   "license": "AGPL-3.0",
   "dependencies": {
-    "@koa/cors": "^3.4.3",
-    "aws-sdk": "^2.1692.0",
-    "config": "^3.3.6",
-    "koa": "^2.16.1",
+    "@aws-sdk/client-s3": "^3.810.0",
+    "@koa/cors": "^5.0.0",
+    "config": "^4.0.0",
+    "koa": "^3.0.0",
     "koa-compress": "^5.1.1",
-    "koa-router": "^11.0.1",
-    "mime": "^2.6.0",
+    "koa-router": "^13.0.1",
+    "mime": "^3.0.0",
     "through2": "^4.0.2",
-    "winston": "^2.4.5",
+    "winston": "^2.4.7",
     "yauzl": "^3.2.0"
   },
   "devDependencies": {
     "archiver": "^7.0.1",
     "chai": "^4.3.4",
-    "jszip": "3.10.1",
+    "jszip": "^3.10.1",
     "mocha": "^6.2.3",
     "request": "^2.88.2",
     "request-promise-native": "^1.0.9",
-    "throttle": "^1.0.3"
+    "throttle": "^1.0.3",
+    "@aws-sdk/lib-storage": "^3.810.0"
   }
 }

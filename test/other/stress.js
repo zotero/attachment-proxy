@@ -31,7 +31,6 @@
  */
 const http = require('http');
 const crypto = require('crypto');
-const AWS = require('aws-sdk');
 const Throttle = require('throttle');
 const JSZip = require('jszip');
 const config = require('config');
@@ -47,7 +46,7 @@ function generateHash() {
 
 function getSignedURL(payload, filename) {
 	payload = JSON.stringify(payload);
-	payload = new Buffer(payload).toString('base64');
+	payload = Buffer.from(payload).toString('base64');
 	let signature = crypto.createHmac('sha256', config.get('secret')).update(payload).digest('hex');
 	return 'http://localhost:' + config.get('port') + '/' + encodeURIComponent(payload) + '/' + signature + '/' + encodeURIComponent(filename);
 }
@@ -73,7 +72,7 @@ async function startS3EmulatorServer() {
 	// One big file that is compressed to kilobytes
 	// It won't be used, but we want to be sure that only
 	// metadata influences memory usage, and not the actual file size
-	zip.file('big.txt', (new Buffer(100 * 1024 * 1024).fill('0')));
+	zip.file('big.txt', Buffer.alloc(100 * 1024 * 1024, '0'));
 	
 	// The main file that will be downloaded on each request
 	zip.file('image.jpg', crypto.randomBytes(1 * 1024 * 1024));

@@ -7,8 +7,10 @@ module.exports = {
 		params: {
 			Bucket: ''
 		},
-		accessKeyId: '',
-		secretAccessKey: ''
+		credentials: {
+			accessKeyId: '',
+			secretAccessKey: ''
+		}
 	},
 	// Secret key used to sign a payload with HMAC
 	secret: '',

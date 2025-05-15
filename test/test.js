@@ -22,19 +22,18 @@
  
  ***** END LICENSE BLOCK *****
  */
-
-const { PassThrough } = require("stream");
+const { PassThrough } = require('stream');
 const expect = require('chai').expect;
 const crypto = require('crypto');
-const AWS = require('aws-sdk');
+const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { Upload } = require('@aws-sdk/lib-storage');
 const archiver = require('archiver');
 const config = require('config');
-// resolveWithFullResponse: true - return full 'res' object instead of 'body'
-// simple: false - don't throw on not 200 responses
-const request = require('request-promise-native')
-	.defaults({resolveWithFullResponse: true, simple: false});
+const request = require('request-promise-native').defaults({resolveWithFullResponse: true, simple: false});
 
-const s3 = new AWS.S3(config.get('s3'));
+const s3Config = config.get('s3');
+
+const s3Client = new S3Client(JSON.parse(JSON.stringify(s3Config)));
 
 function getSignedURL(payload, filename) {
 	payload = JSON.stringify(payload);
@@ -43,19 +42,24 @@ function getSignedURL(payload, filename) {
 	return 'http://localhost:' + config.get('port') + '/' + encodeURIComponent(payload) + '/' + signature + '/' + encodeURIComponent(filename);
 }
 
-function uploadFile(key, body) {
-	let params = {
-		Key: key,
-		Body: body
-	};
-	return s3.upload(params).promise();
+async function uploadFile(key, body) {
+	let upload = new Upload({
+		client: s3Client,
+		params: {
+			Bucket: s3Config.params.Bucket,
+			Key: key,
+			Body: body
+		}
+	});
+	return upload.done();
 }
 
-function deleteFile(key) {
-	let params = {
+async function deleteFile(key) {
+	let cmd = new DeleteObjectCommand({
+		Bucket: s3Config.params.Bucket,
 		Key: key
-	};
-	return s3.deleteObject(params).promise();
+	});
+	return s3Client.send(cmd);
 }
 
 function generateHash() {

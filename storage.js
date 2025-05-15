@@ -25,7 +25,7 @@
 
 const fs = require('fs');
 const crypto = require('crypto');
-const AWS = require('aws-sdk');
+const { S3Client, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const through2 = require('through2');
 const log = require('./log');
 const utils = require('./utils');
@@ -33,14 +33,17 @@ const utils = require('./utils');
 const Storage = function (options) {
 	this.tmpDir = options.tmpDir;
 	if (this.tmpDir.slice(-1) !== '/') this.tmpDir += '/';
-	
-	this.s3Client = new AWS.S3(options.config);
+
+	let { accessKeyId, secretAccessKey, region, endpoint, s3ForcePathStyle } = options.config;
+	this.s3Client = new S3Client(options.config);
+	this.bucket = options.config.params.Bucket;
 };
 
 module.exports = Storage;
 
 /**
- * Returns s3 file stream
+ * Returns S3 file stream
+ *
  * @param hash
  * @param callback
  * @returns stream
@@ -50,7 +53,7 @@ Storage.prototype.getStream = function (hash, callback) {
 	return utils.promisify(function (callback) {
 		storage.getStreamByKey(hash, function (err, stream) {
 			if (err) {
-				if (err.code === 'NoSuchKey') {
+				if (err.name === 'NoSuchKey') {
 					storage.getLegacyKey(hash, function (err, key) {
 						if (err) return callback(err);
 						storage.getStreamByKey(key, function (err, stream) {
@@ -59,7 +62,7 @@ Storage.prototype.getStream = function (hash, callback) {
 						});
 					});
 				} else {
-					callback(err)
+					callback(err);
 				}
 			} else {
 				callback(null, stream);
@@ -69,70 +72,64 @@ Storage.prototype.getStream = function (hash, callback) {
 };
 
 /**
- * If stream data starts flowing this function returns stream object,
- * otherwise it returns error.
- * AWS S3 SDK only provides 'createReadStream' to transform request to stream,
- * and emits NoItem error to stream. But we need to know if item exists or not
- * before creating stream. There isn't convenient way to do this.
- * There also exists 'httpResponse.createUnbufferedStream' that can be used in
- * 'httpHeaders' event to create a stream if 200 http response code was get,
- * but this makes error handling more complicated and hacky
+ * If stream data starts flowing, this function returns a stream object,
+ * otherwise it returns an error.
+ *
  * @param key
  * @param callback
  */
-Storage.prototype.getStreamByKey = function(key, callback) {
+Storage.prototype.getStreamByKey = function (key, callback) {
 	const storage = this;
 	let streaming = false;
-	let n =0;
-	let stream2 = through2({highWaterMark: 1 * 1024 * 1024},
+	let stream2 = through2({ highWaterMark: 1 * 1024 * 1024 },
 		function (chunk, enc, next) {
-			if(!streaming) {
+			if (!streaming) {
 				streaming = true;
 				callback(null, stream2);
 			}
 			this.push(chunk);
 			next();
-		});
-
-	let request = storage.s3Client.getObject({ Key: key });
-	request.on('httpHeaders', (statusCode, headers) => {
-		if (statusCode === 200 && headers['content-length']) {
-			stream2.contentLength = parseInt(headers['content-length'], 10);
 		}
+	);
+
+	// Use GetObjectCommand to read from S3
+	const command = new GetObjectCommand({
+		Bucket: this.bucket,
+		Key: key,
 	});
-	let stream = request.createReadStream();
-	// There are errors that can happen before data started streaming
-	// e.g. NoItemFound, connection time out, etc.
-	// and there are errors that can happen when streaming is already started
-	// e.g. connection reset, data timeout, etc.
-	stream.on('error', function(err) {
+
+	storage.s3Client.send(command).then((response) => {
+		stream2.contentLength = response.ContentLength;
+		response.Body.pipe(stream2);
+	}).catch((err) => {
 		if (streaming) {
 			stream2.emit('error', err);
 		} else {
 			callback(err);
 		}
 	});
-	stream.pipe(stream2);
 };
 
 /**
- * Try to get legacy S3 key
+ * Try to get a legacy S3 key
  * @param hash
  * @param callback
  */
 Storage.prototype.getLegacyKey = function (hash, callback) {
 	const storage = this;
-	const params = {
-		Bucket: this.bucket,
+	const command = new ListObjectsV2Command({
 		MaxKeys: 1,
 		Prefix: hash,
-	};
-	storage.s3Client.listObjects(params, function (err, data) {
-		if (err) return callback(err);
+	});
+
+	storage.s3Client.send(command).then((data) => {
 		if (Array.isArray(data.Contents) && data.Contents[0] && data.Contents[0].Key) {
-			return callback(null, data.Contents[0].Key)
+			callback(null, data.Contents[0].Key);
+		} else {
+			callback(new Error('No S3 key found'));
 		}
-		callback(new Error('No S3 key found'));
+	}).catch((err) => {
+		callback(err);
 	});
 };
 

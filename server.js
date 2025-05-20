@@ -30,6 +30,7 @@ const cors = require('@koa/cors');
 const Router = require('koa-router');
 const compress = require('koa-compress');
 const mime = require('mime');
+const Netmask = require('netmask').Netmask;
 const config = require('config');
 const log = require('./log');
 const Zip = require('./zip');
@@ -73,6 +74,83 @@ app.use(async function (ctx, next) {
 		}
 	}
 });
+
+/**
+ * Middleware for logging requests
+ */
+app.use(async (ctx, next) => {
+	let start = Date.now();
+	await next();
+	let ms = Date.now() - start;
+	
+	// Apache Combined log format
+	let ip = getIP(ctx);
+	let user = ctx.state.user || '-';
+	let date = formatApacheDate();
+	let method = ctx.method;
+	let url = ctx.url;
+	// Redact full URL
+	let urlParts = url.match(/\/[a-z0-9]{50,}\/(.*?)(\.[a-z0-9]{1,20})?$/);
+	if (urlParts) {
+		let fileBaseName = urlParts[1];
+		if (fileBaseName.length > 3) {
+			fileBaseName = fileBaseName.substring(0, 3) + "[...]";
+		}
+		let ext = urlParts[2] || '';
+		url = "/[...]/" + fileBaseName + ext;
+	}
+	let protocol = `HTTP/${ctx.req.httpVersion}`;
+	let status = ctx.status;
+	let length =
+		ctx.state.fileSize // what we stashed earlier
+			?? ctx.length // Koa getter if header survived
+			?? ctx.response.get('Content-Length') // raw header if compress didn’t run
+			?? '-';
+	let referer = ctx.get('Referer') || '-';
+	let userAgent = ctx.get('User-Agent') || '-';
+	
+	console.log(`${ip} - ${user} [${date}] "${method} ${url} ${protocol}" ${status} ${length} "${referer}" "${userAgent}" ${ms}ms`);
+});
+
+function getIP(ctx) {
+	var remoteAddress = ctx.ip;
+	if (remoteAddress.startsWith('::ffff:')) {
+		remoteAddress = remoteAddress.slice(7);
+	}
+	try {
+		let xForwardedFor = ctx.headers['x-forwarded-for'];
+		if (remoteAddress && xForwardedFor) {
+			let proxies = config.get('trustedProxies');
+			if (Array.isArray(proxies)
+					&& proxies.some(cidr => new Netmask(cidr).contains(remoteAddress))) {
+				// Extract the left-most IP address from the X-Forwarded-For header
+				let forwardedIPs = xForwardedFor.split(',').map(ip => ip.trim());
+				if (forwardedIPs.length > 0) {
+					remoteAddress = forwardedIPs[0];
+				}
+			}
+		}
+	}
+	catch (e) {
+		log.error(e);
+	}
+	return remoteAddress;
+}
+
+function formatApacheDate(d = new Date()) {
+	let pad = (n) => n.toString().padStart(2, '0');
+	let day = pad(d.getDate());
+	let month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+	let year = d.getFullYear();
+	let hours = pad(d.getHours());
+	let minutes = pad(d.getMinutes());
+	let seconds = pad(d.getSeconds());
+	let offset = -d.getTimezoneOffset();
+	let sign = offset >= 0 ? '+' : '-';
+	let tzHrs = pad(Math.floor(Math.abs(offset) / 60));
+	let tzMins = pad(Math.abs(offset) % 60);
+	return `${day}/${month}/${year}:${hours}:${minutes}:${seconds} ${sign}${tzHrs}${tzMins}`;
+}
 
 /**
  * A middleware to use gzip compression if the file is compressible
@@ -164,7 +242,8 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 		}
 
 		if (stream.contentLength) {
-			ctx.set('Content-Length', stream.contentLength.toString());
+			ctx.length = stream.contentLength; // sets Content-Length header
+			ctx.state.fileSize = stream.contentLength; // keep a copy for logging
 		}
 
 		ctx.body = stream;

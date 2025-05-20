@@ -18,5 +18,6 @@ module.exports = {
 	// Directory to keep temporary downloaded zip files
 	tmpDir: './tmp/',
 	// Client connection inactivity timeout in seconds
-	connectionTimeout: 30
+	connectionTimeout: 30,
+	trustedProxies: [],
 };

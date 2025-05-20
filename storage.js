@@ -25,16 +25,18 @@
 
 const fs = require('fs');
 const crypto = require('crypto');
-const AWS = require('aws-sdk');
-const through2 = require('through2');
+const { S3Client, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { pipeline } = require('stream/promises');
 const log = require('./log');
-const utils = require('./utils');
 
 const Storage = function (options) {
 	this.tmpDir = options.tmpDir;
 	if (this.tmpDir.slice(-1) !== '/') this.tmpDir += '/';
 	
-	this.s3Client = new AWS.S3(options.config);
+	this.bucket = options.config.bucket;
+	this.s3Client = new S3Client({
+		region: options.config.region
+	});
 };
 
 module.exports = Storage;
@@ -42,98 +44,55 @@ module.exports = Storage;
 /**
  * Returns s3 file stream
  * @param hash
- * @param callback
  * @returns stream
  */
-Storage.prototype.getStream = function (hash, callback) {
-	const storage = this;
-	return utils.promisify(function (callback) {
-		storage.getStreamByKey(hash, function (err, stream) {
-			if (err) {
-				if (err.code === 'NoSuchKey') {
-					storage.getLegacyKey(hash, function (err, key) {
-						if (err) return callback(err);
-						storage.getStreamByKey(key, function (err, stream) {
-							if (err) return callback(err);
-							callback(null, stream);
-						});
-					});
-				} else {
-					callback(err)
-				}
-			} else {
-				callback(null, stream);
-			}
-		});
-	}, callback);
+Storage.prototype.getStream = async function (hash) {
+	try {
+		return await this.getStreamByKey(hash);
+	}
+	catch (e) {
+		if (e.code == 'NoSuchKey') {
+			let legacyKey = await this.getLegacyKey(hash);
+			return await this.getStreamByKey(legacyKey);
+		}
+		throw e;
+	}
 };
 
 /**
- * If stream data starts flowing this function returns stream object,
- * otherwise it returns error.
- * AWS S3 SDK only provides 'createReadStream' to transform request to stream,
- * and emits NoItem error to stream. But we need to know if item exists or not
- * before creating stream. There isn't convenient way to do this.
- * There also exists 'httpResponse.createUnbufferedStream' that can be used in
- * 'httpHeaders' event to create a stream if 200 http response code was get,
- * but this makes error handling more complicated and hacky
  * @param key
- * @param callback
  */
-Storage.prototype.getStreamByKey = function(key, callback) {
-	const storage = this;
-	let streaming = false;
-	let n =0;
-	let stream2 = through2({highWaterMark: 1 * 1024 * 1024},
-		function (chunk, enc, next) {
-			if(!streaming) {
-				streaming = true;
-				callback(null, stream2);
-			}
-			this.push(chunk);
-			next();
-		});
-
-	let request = storage.s3Client.getObject({ Key: key });
-	request.on('httpHeaders', (statusCode, headers) => {
-		if (statusCode === 200 && headers['content-length']) {
-			stream2.contentLength = parseInt(headers['content-length'], 10);
-		}
-	});
-	let stream = request.createReadStream();
-	// There are errors that can happen before data started streaming
-	// e.g. NoItemFound, connection time out, etc.
-	// and there are errors that can happen when streaming is already started
-	// e.g. connection reset, data timeout, etc.
-	stream.on('error', function(err) {
-		if (streaming) {
-			stream2.emit('error', err);
-		} else {
-			callback(err);
-		}
-	});
-	stream.pipe(stream2);
+Storage.prototype.getStreamByKey = async function(key) {
+	let { Body, ContentLength } = await this.s3Client.send(
+		new GetObjectCommand({
+			Bucket: this.bucket,
+			Key: key
+		})
+	);
+	Body.contentLength = ContentLength;
+	return Body;
 };
 
 /**
  * Try to get legacy S3 key
  * @param hash
- * @param callback
  */
-Storage.prototype.getLegacyKey = function (hash, callback) {
-	const storage = this;
+Storage.prototype.getLegacyKey = async function (hash) {
 	const params = {
 		Bucket: this.bucket,
 		MaxKeys: 1,
 		Prefix: hash,
 	};
-	storage.s3Client.listObjects(params, function (err, data) {
-		if (err) return callback(err);
-		if (Array.isArray(data.Contents) && data.Contents[0] && data.Contents[0].Key) {
-			return callback(null, data.Contents[0].Key)
-		}
-		callback(new Error('No S3 key found'));
-	});
+	const { Contents } = await this.s3Client.send(
+		new ListObjectsV2Command(params)
+	);
+	
+	if (!Contents?.length) {
+		const err = new Error('No legacy key found');
+		err.code = 'NoSuchKey';
+		throw err;
+	}
+	return Contents[0].Key;
 };
 
 Storage.prototype.getTmpPath = function () {
@@ -144,40 +103,16 @@ Storage.prototype.getTmpPath = function () {
 	}
 };
 
-Storage.prototype.downloadTmp = function (hash, callback) {
-	const storage = this;
-	return utils.promisify(function (callback) {
-		storage.getStream(hash, function (err, s3Stream) {
-			if (err) return callback(err);
-			let tmpPath = storage.getTmpPath();
-			if (!tmpPath) return callback(new Error('Error generating a tmp file path'));
-			
-			let tmpStream = fs.createWriteStream(tmpPath);
-			
-			// Multiple streams can theoretically simultaneously emit errors,
-			// therefore we have to prevent repeated callback calls
-			let _callback = function () {
-				_callback = function () {
-				};
-				
-				// Delete the temporary file if one or another stream fails
-				fs.unlink(tmpPath, function (err) {
-				});
-				callback.apply(this, arguments);
-			};
-			
-			tmpStream.on('error', function (err) {
-				_callback(err)
-			});
-			s3Stream.on('error', function (err) {
-				_callback(err)
-			});
-			
-			tmpStream.on('finish', function () {
-				callback(null, tmpPath);
-			});
-			
-			s3Stream.pipe(tmpStream);
-		});
-	}, callback);
+Storage.prototype.downloadTmp = async function (hash) {
+	let tmpPath = this.getTmpPath();
+	try {
+		let s3Stream = await this.getStream(hash);
+		let tmpStream = fs.createWriteStream(tmpPath);
+		await pipeline(s3Stream, tmpStream);
+		return tmpPath;
+	}
+	catch (e) {
+		try { await fs.promises.unlink(tmpPath); } catch (_) {}
+		throw e;
+	}
 };

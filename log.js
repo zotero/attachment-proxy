@@ -23,20 +23,31 @@
  ***** END LICENSE BLOCK *****
  */
 
-const winston = require('winston');
+const { createLogger, transports, format } = require('winston');
 const config = require('config');
 
-const log = new (winston.Logger)({});
+const log = createLogger({
+	format: format.combine(
+		format.timestamp(),
+		format.errors({ stack: true }),     // moves err.stack onto info.stack
+		format.printf(info => {
+			// Pretty-print everything on one line
+			const { level, message, ...meta } = info;
+			const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+			return `[${level}] ${message}${metaStr}`;
+		})
+	)
+});
 
 if (config.get('logFile')) {
-	log.add(winston.transports.File, {
+	log.add(new transports.File({
 		level: config.get('logLevel'),
 		filename: config.get('logFile'),
-	});
+	}));
 } else {
-	log.add(winston.transports.Console, {
-		level: config.get('logLevel')
-	});
+	log.add(new transports.Console({
+		level: config.get('logLevel'),
+	}));
 }
 
 module.exports = log;

@@ -4,11 +4,8 @@ module.exports = {
 	logFile: '',
 	port: 3000,
 	s3: {
-		params: {
-			Bucket: ''
-		},
-		accessKeyId: '',
-		secretAccessKey: ''
+		bucket: '',
+		region: '',
 	},
 	// Secret key used to sign a payload with HMAC
 	secret: '',

@@ -34,7 +34,6 @@ const config = require('config');
 const log = require('./log');
 const Zip = require('./zip');
 const Storage = require('./storage');
-const utils = require('./utils');
 
 const app = new Koa();
 const router = new Router();
@@ -248,7 +247,7 @@ process.on('uncaughtException', function (err) {
 });
 
 process.on("unhandledRejection", function (reason, promise) {
-	log.error('Unhandled Rejection at:', promise, 'reason:', reason);
+	log.error('Unhandled rejection:', promise, 'reason:', reason);
 	shutdown();
 });
 
@@ -269,11 +268,11 @@ app.on('error', function (err, ctx) {
 	log.debug('App error: ', err, ctx);
 });
 
-module.exports = function (callback) {
+module.exports = function () {
 	log.info("Starting attachment-proxy [pid: " + process.pid + "] on port " + config.get('port'));
-	return utils.promisify(function (callback) {
-		let server = app.listen(config.get('port'), callback);
+	new Promise(resolve => {
+		let server = app.listen(config.get('port'), resolve);
 		// Set a timeout for disconnecting inactive clients
 		server.setTimeout(config.get('connectionTimeout') * 1000);
-	}, callback);
+    });
 };

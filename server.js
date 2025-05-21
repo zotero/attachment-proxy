@@ -218,12 +218,12 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 		let stream = null;
 		try {
 			stream = await zip.getStream(filename);
-		} catch (err) {
-			// To keep all http response code logic in server.js
-			if (err.code === 'EntryNotFound') {
-				err.status = 404;
+		}
+		catch (e) {
+			if (e.code === 'EntryNotFound') {
+				ctx.throw(404);
 			}
-			throw err;
+			throw e;
 		}
 		// Guess content-type
 		ctx.type = mime.getType(filename);
@@ -236,7 +236,16 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 		}
 		
 		// Todo: Guess mime type if it's not set in payload?
-		let stream = await storage.getStream(payload.hash);
+		let stream;
+		try {
+			stream = await storage.getStream(payload.hash);
+		}
+		catch (e) {
+			if (e.Code == 'NoSuchKey') {
+				ctx.throw(404);
+			}
+			throw e;
+		}
 		if (payload.contentType) {
 			let type = payload.contentType;
 			if (payload.charset) {

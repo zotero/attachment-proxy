@@ -51,7 +51,7 @@ Storage.prototype.getStream = async function (hash) {
 		return await this.getStreamByKey(hash);
 	}
 	catch (e) {
-		if (e.code == 'NoSuchKey') {
+		if (e.Code == 'NoSuchKey') {
 			let legacyKey = await this.getLegacyKey(hash);
 			return await this.getStreamByKey(legacyKey);
 		}
@@ -88,9 +88,9 @@ Storage.prototype.getLegacyKey = async function (hash) {
 	);
 	
 	if (!Contents?.length) {
-		const err = new Error('No legacy key found');
-		err.code = 'NoSuchKey';
-		throw err;
+		const e = new Error('No legacy key found');
+		e.Code = 'NoSuchKey';
+		throw e;
 	}
 	return Contents[0].Key;
 };

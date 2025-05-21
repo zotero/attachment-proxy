@@ -90,14 +90,18 @@ app.use(async (ctx, next) => {
 	let method = ctx.method;
 	let url = ctx.url;
 	// Redact full URL
-	let urlParts = url.match(/\/[a-z0-9]{50,}\/(.*?)(\.[a-z0-9]{1,20})?$/);
+	let urlParts = url.match(/\/[a-z0-9%]{20,}\/[a-z0-9%]{20,}\/(.*?)(\.[a-z0-9]{1,20})?$/i);
 	if (urlParts) {
 		let fileBaseName = urlParts[1];
-		if (fileBaseName.length > 3) {
-			fileBaseName = fileBaseName.substring(0, 3) + "[...]";
-		}
 		let ext = urlParts[2] || '';
-		url = "/[...]/" + fileBaseName + ext;
+		if (ctx.method == 'POST' && fileBaseName == 'upload' && ext == '') {
+			url = "/[" + ctx.state.item + "]/upload";
+		}
+		else if (fileBaseName.length > 3) {
+			// Truncate filename
+			fileBaseName = fileBaseName.substring(0, 3) + "[…]";
+			url = "/[" + ctx.state.item + "]/" + fileBaseName + ext;
+		}
 	}
 	let protocol = `HTTP/${ctx.req.httpVersion}`;
 	let status = ctx.status;
@@ -199,6 +203,8 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 		ctx.throw(500);
 	}
 	
+	ctx.state.item = payload.item;
+	
 	// Validate url expiration
 	let t = Math.floor(Date.now() / 1000);
 	if (payload.expires <= t) {
@@ -240,14 +246,48 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 			}
 			ctx.type = type;
 		}
-
+		
 		if (stream.contentLength) {
 			ctx.length = stream.contentLength; // sets Content-Length header
 			ctx.state.fileSize = stream.contentLength; // keep a copy for logging
 		}
-
+		
 		ctx.body = stream;
 	}
+});
+
+router.post('/:payload/:signature/:filename', async ctx => {
+	let { payload, signature } = ctx.params;
+	
+	// Compare signatures
+	let computedSignature = crypto.createHmac("sha256", config.get('secret')).update(payload).digest("hex");
+	if (signature !== computedSignature) {
+		ctx.throw(400);
+	}
+	
+	// Check expiration time
+	let { url, expires, item } = JSON.parse(Buffer.from(payload, 'base64'));
+	if (expires <= Date.now() / 1000) {
+		ctx.throw(410, 'Expired');
+	}
+	
+	ctx.state.item = item;
+	
+	// Stream the request to S3
+	let target = new URL(url);
+	let res = await fetch(target, {
+		method : 'POST',
+		headers: { ...ctx.request.headers, host: target.hostname },
+		body: ctx.req,
+		duplex: 'half'
+	});
+	
+	// Copy S3 response back to client
+	ctx.status = res.status;
+	res.headers.forEach((v, k) => {
+		if (k.toLowerCase() !== 'transfer-encoding') ctx.set(k, v);
+	});
+	ctx.body = res.body;
 });
 
 app

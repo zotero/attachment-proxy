@@ -98,9 +98,7 @@ app.use(async (ctx, next) => {
 			url = "/[" + ctx.state.item + "]/upload";
 		}
 		else if (fileBaseName.length > 3) {
-			// Truncate filename
-			fileBaseName = fileBaseName.substring(0, 3) + "[…]";
-			url = "/[" + ctx.state.item + "]/" + fileBaseName + ext;
+			url = "/[" + ctx.state.item + "]/[…]" + ext;
 		}
 	}
 	let protocol = `HTTP/${ctx.req.httpVersion}`;

@@ -315,12 +315,21 @@ async function getZip(hash) {
 	
 	let tmpPath = await storage.downloadTmp(hash);
 	zip = new Zip();
-	await zip.load({
-		maxFiles: config.get('zipMaxFiles'),
-		maxFileSize: config.get('zipMaxFileSize'),
-		hash: hash,
-		path: tmpPath
-	});
+	try {
+		await zip.load({
+			maxFiles: config.get('zipMaxFiles'),
+			maxFileSize: config.get('zipMaxFileSize'),
+			hash: hash,
+			path: tmpPath
+		});
+	}
+	catch (e) {
+		// Don't leak the downloaded temp file if the zip can't be loaded
+		// (corrupt, too many files, too large, etc.). load() already
+		// destroys the Zip object on failure.
+		fs.unlink(tmpPath, err => {});
+		throw e;
+	}
 	
 	// If another parallel request was faster to load the zip file,
 	// we have to destroy our and return the already existing

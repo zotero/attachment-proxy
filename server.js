@@ -68,7 +68,12 @@ app.use(async function (ctx, next) {
 		
 		// Be verbose only with internal server errors
 		if (err.status) {
-			log.warn(err.message);
+			if (err.logMeta) {
+				log.warn(err.message, err.logMeta);
+			}
+			else {
+				log.warn(err.message);
+			}
 		} else {
 			log.error(err);
 		}
@@ -88,19 +93,7 @@ app.use(async (ctx, next) => {
 	let user = ctx.state.user || '-';
 	let date = formatApacheDate();
 	let method = ctx.method;
-	let url = ctx.url;
-	// Redact full URL
-	let urlParts = url.match(/\/[a-z0-9%]{20,}\/[a-z0-9%]{20,}\/(.*?)(\.[a-z0-9]{1,20})?$/i);
-	if (urlParts) {
-		let fileBaseName = urlParts[1];
-		let ext = urlParts[2] || '';
-		if (ctx.method == 'POST' && fileBaseName == 'upload' && ext == '') {
-			url = "/[" + ctx.state.item + "]/upload";
-		}
-		else if (fileBaseName.length > 3) {
-			url = "/[" + ctx.state.item + "]/[…]" + ext;
-		}
-	}
+	let url = getRedactedURL(ctx);
 	let protocol = `HTTP/${ctx.req.httpVersion}`;
 	let status = ctx.status;
 	let length =
@@ -113,6 +106,26 @@ app.use(async (ctx, next) => {
 	
 	console.log(`${ip} - ${user} [${date}] "${method} ${url} ${protocol}" ${status} ${length} "${referer}" "${userAgent}" ${ms}ms`);
 });
+
+/**
+ * Redact the payload, signature, and filename from the request URL,
+ * leaving the item (libraryID/key) and file extension
+ */
+function getRedactedURL(ctx) {
+	let url = ctx.url;
+	let urlParts = url.match(/\/[a-z0-9%]{20,}\/[a-z0-9%]{20,}\/(.*?)(\.[a-z0-9]{1,20})?$/i);
+	if (urlParts) {
+		let fileBaseName = urlParts[1];
+		let ext = urlParts[2] || '';
+		if (ctx.method == 'POST' && fileBaseName == 'upload' && ext == '') {
+			url = "/[" + ctx.state.item + "]/upload";
+		}
+		else if (fileBaseName.length > 3) {
+			url = "/[" + ctx.state.item + "]/[…]" + ext;
+		}
+	}
+	return url;
+}
 
 function getIP(ctx) {
 	var remoteAddress = ctx.ip;
@@ -209,6 +222,11 @@ router.get('/:payload/:signature/:filename', async function (ctx) {
 		const err = new Error('This URL has expired.');
 		err.status = 410;
 		err.expose = true;
+		err.logMeta = {
+			ip: getIP(ctx),
+			path: getRedactedURL(ctx),
+			expiredSecondsAgo: t - payload.expires
+		};
 		throw err;
 	}
 	
